@@ -1,0 +1,122 @@
+#lang racket
+(define (add-to-end lst e) 
+   (if (null? lst) 
+       (list e)
+       (cons (car lst)
+             (add-to-end (cdr lst) e))))
+
+(define (member e lst)
+  (cond
+    [(not(pair? lst)) (eq? e lst)]
+    [(eq? (car lst) e) #t]
+    [else (member e (cdr lst))]))
+
+; what happens if listdiff isn't listdiff?
+(define (listdiff->list listdiff)
+  (define (iter s1 s2 acc)
+    (cond
+      [(not(pair? s1)) (if (member s1 s2) acc (add-to-end acc s1))]
+      [(member (car s1) s2) (iter (cdr s1) (cdr s2) acc)]
+      [else (iter (cdr s1) s2 (add-to-end acc (car s1)))]))
+  (iter (car listdiff) (cdr listdiff) empty))
+
+(define (list->listdiff list)
+  (cons list empty))
+     
+(define (null-ld? obj)
+  (if (and (pair? obj) (eq? (car obj) (cdr obj))) #t #f)) 
+
+(define (listdiff? obj)
+  (define (iter x y)
+    (cond
+      [(eq? x y) #t]
+      [(not(pair? y)) #f]
+      [else (iter x (cdr y))]))
+  (if (not(pair? obj)) #f (iter (cdr obj) (car obj))))
+
+(define (cons-ld obj listdiff) (cons (cons obj (car listdiff)) (cdr listdiff)))
+
+(define (car-ld listdiff) (car (listdiff->list listdiff)))
+(define (cdr-ld listdiff) (list->listdiff (cdr (listdiff->list listdiff))))
+
+(define (listdiff obj . args)
+  (list->listdiff (cons obj args)))
+
+; should only work on listdiffs
+(define (length-ld listdiff) (length (listdiff->list listdiff)))
+
+(define (assq-ld obj alistdiff)
+  (define (iter lst)
+  (cond
+    [(empty? lst) #f]
+    [(eq? (car (car lst)) obj) (car lst)]
+    [else (iter (cdr lst))]
+    ))
+   (iter (listdiff->list alistdiff))
+  )
+
+(define (append-ld listdiff . args)
+  (define (iter lst acc)
+    (cond
+      [(= (length lst) 1) (cons (append acc (listdiff->list (car lst))) (cdr lst))]
+      [else (iter (cdr lst) (append acc (listdiff->list (car lst))))]))
+ (iter (append (list listdiff) args) empty))
+
+(define (expr-returning listdiff)
+  (quasiquote (cons (quote (unquote (listdiff->list listdiff))) '())))
+
+(define ils (append '(a e i o u) 'y))
+(define d1 (cons ils (cdr (cdr ils))))
+(define d2 (cons ils ils))
+(define d3 (cons ils (append '(a e i o u) 'y)))
+(define d4 (cons '() ils))
+(define d5 0)
+(define d6 (listdiff ils d1 37))
+(define d7 (append-ld d1 d2 d6))
+(define e1 (expr-returning d1))
+
+(listdiff? d1)                         
+(listdiff? d2)                         
+(listdiff? d3)                         ;===>  #f
+(listdiff? d4)                         ;===>  #f
+(listdiff? d5)                         ;===>  #f
+(listdiff? d6)                         ;===>  #t
+(listdiff? d7)                         ;===>  #t
+
+(null-ld? d1)                          ;===>  #f
+(null-ld? d2)                          ;===>  #t
+(null-ld? d3)                          ;===>  #f
+(null-ld? d6)                          ;===>  #f
+
+(car-ld d1)                            ;===>  a
+(car-ld d2)                            ;===>  error
+(car-ld d3)                            ;===>  error
+(car-ld d6)                            ;===>  (a e i o u . y)
+
+(length-ld d1)                        ; ===>  2
+(length-ld d2)                        ; ===>  0
+(length-ld d3)                        ; ===>  error
+(length-ld d6)                        ; ===>  3
+(length-ld d7)                        ; ===>  5
+
+(define kv1 (cons d1 'a))
+(define kv2 (cons d2 'b))
+(define kv3 (cons d3 'c))
+(define kv4 (cons d1 'd))
+(define d8 (listdiff kv1 kv2 kv3 kv4))
+(eq? (assq-ld d1 d8) kv1)              ;===>  #t
+(eq? (assq-ld d2 d8) kv2)              ;===>  #t
+(eq? (assq-ld d1 d8) kv4)              ;===>  #f
+
+(eq? (car-ld d6) ils)                  ;===>  #t
+(eq? (car-ld (cdr-ld d6)) d1)          ;===>  #t
+(eqv? (car-ld (cdr-ld (cdr-ld d6))) 37);===>  #t
+(equal? (listdiff->list d6)
+        (list ils d1 37))              ;===>  #t
+(eq? (list-tail (car d6) 3) (cdr d6))  ;===>  #t
+
+(listdiff->list (eval e1))             ;===>  (a e)
+(equal? (listdiff->list (eval e1))
+        (listdiff->list d1))           ;===>  #t
+
+

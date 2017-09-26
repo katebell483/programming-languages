@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="jmm">
+    <CLASSES />
+    <JAVADOC />
+    <SOURCES>
+      <root url="jar://$PROJECT_DIR$/../hw-3/jmm.jar!/" />
+    </SOURCES>
+  </library>
+</component>
